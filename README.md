@@ -23,6 +23,8 @@ is ever sent to a server.
      randomly selects a category, preferring ones the team hasn't used yet.
    - Picking a category starts the **countdown timer** for that turn (if one is
      configured). It can be paused/resumed or reset, and flashes when time is up.
+   - While the timer is running, **musical notes float up the page** for a bit of
+     karaoke atmosphere (disabled if you prefer reduced motion).
    - After the person has sung, a **rating popup** of emojis appears. Choosing
      one records the score and passes the turn to the next team/round.
 4. The quiz can be **ended at any time**, and the completed grid stays visible.
