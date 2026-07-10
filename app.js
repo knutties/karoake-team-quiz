@@ -109,6 +109,10 @@ function fillSelect(sel, values, emptyPrompt) {
    SETUP VIEW
    ================================================================ */
 
+/* Index of the person currently being edited in the add/edit row, or null
+   when the row is in "add a new person" mode. UI-only, not persisted. */
+let editingPersonIndex = null;
+
 function renderSetup() {
   const s = state.setup;
 
@@ -150,17 +154,27 @@ function renderSetup() {
   if (!s.people.length) personList.append(el("li", "empty-note", "No people yet."));
   s.people.forEach((p, i) => {
     const li = el("li");
+    if (i === editingPersonIndex) li.classList.add("editing");
     const left = el("span");
     left.append(el("span", "p-name", p.name));
     left.append(el("span", "type-tag", p.type));
     if (p.family) left.append(el("span", "family-tag", p.family));
     li.append(left);
+
+    const controls = el("span", "row-controls");
+    const edit = el("button", "row-edit", "✎");
+    edit.title = "Edit";
+    edit.onclick = () => startEditPerson(i);
     const rm = el("button", null, "×");
     rm.title = "Remove";
     rm.onclick = () => removePerson(i);
-    li.append(rm);
+    controls.append(edit, rm);
+    li.append(controls);
     personList.append(li);
   });
+
+  // Reflect add-vs-edit mode in the person row.
+  syncPersonRow();
 
   // Categories
   const catList = $("#category-list");
@@ -195,6 +209,7 @@ function removeType(i) {
   const removed = state.setup.types.splice(i, 1)[0];
   // People that used this type lose their type reference.
   state.setup.people = state.setup.people.filter((p) => p.type !== removed);
+  editingPersonIndex = null;
   saveState();
   renderSetup();
 }
@@ -215,24 +230,67 @@ function removeFamily(i) {
   state.setup.people.forEach((p) => {
     if (p.family === removed) p.family = "";
   });
+  editingPersonIndex = null;
   saveState();
   renderSetup();
 }
 
-function addPerson() {
+/* Add a new person, or save changes when editing an existing one. */
+function submitPerson() {
   const nameInput = $("#person-input");
   const type = $("#person-type").value;
   const family = $("#person-family").value;
   const name = nameInput.value.trim();
   if (!name || !type || !family) return;
-  state.setup.people.push({ name, type, family });
+
+  if (editingPersonIndex != null && state.setup.people[editingPersonIndex]) {
+    state.setup.people[editingPersonIndex] = { name, type, family };
+    editingPersonIndex = null;
+  } else {
+    state.setup.people.push({ name, type, family });
+  }
   nameInput.value = "";
   saveState();
   renderSetup();
 }
 
+/* Load a person's details into the add/edit row for editing. */
+function startEditPerson(i) {
+  editingPersonIndex = i;
+  renderSetup();
+  $("#person-input").focus();
+}
+
+function cancelEditPerson() {
+  editingPersonIndex = null;
+  $("#person-input").value = "";
+  renderSetup();
+}
+
+/* Prefill the row and toggle Add/Save + Cancel based on edit mode. */
+function syncPersonRow() {
+  const submitBtn = $("#person-submit-btn");
+  const cancelBtn = $("#person-cancel-btn");
+  const editing =
+    editingPersonIndex != null && state.setup.people[editingPersonIndex];
+
+  if (editing) {
+    const p = state.setup.people[editingPersonIndex];
+    $("#person-input").value = p.name;
+    if (state.setup.types.includes(p.type)) $("#person-type").value = p.type;
+    if (state.setup.families.includes(p.family)) $("#person-family").value = p.family;
+    submitBtn.textContent = "Save";
+    cancelBtn.hidden = false;
+  } else {
+    submitBtn.textContent = "Add";
+    cancelBtn.hidden = true;
+  }
+}
+
 function removePerson(i) {
   state.setup.people.splice(i, 1);
+  // Editing state is index-based, so cancel it to avoid pointing at the wrong row.
+  editingPersonIndex = null;
   saveState();
   renderSetup();
 }
@@ -607,7 +665,7 @@ function init() {
       const kind = btn.dataset.add;
       if (kind === "type") addType();
       else if (kind === "family") addFamily();
-      else if (kind === "person") addPerson();
+      else if (kind === "person") submitPerson();
       else if (kind === "category") addCategory();
     };
   });
@@ -616,7 +674,7 @@ function init() {
   const enterMap = {
     "type-input": addType,
     "family-input": addFamily,
-    "person-input": addPerson,
+    "person-input": submitPerson,
     "category-input": addCategory,
   };
   Object.entries(enterMap).forEach(([id, fn]) => {
@@ -637,6 +695,7 @@ function init() {
 
   $("#start-btn").onclick = startQuiz;
   $("#reset-btn").onclick = clearLocalData;
+  $("#person-cancel-btn").onclick = cancelEditPerson;
   $("#restart-btn").onclick = restartQuiz;
   $("#end-btn").onclick = endQuiz;
   $("#back-setup-btn").onclick = () => showView("setup");
