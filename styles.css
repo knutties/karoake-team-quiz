@@ -157,6 +157,15 @@ input:focus, select:focus { border-color: var(--accent-2); }
   margin-left: 10px;
   font-weight: 600;
 }
+.family-tag {
+  font-size: 0.72rem;
+  color: #fff;
+  background: var(--accent-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  font-weight: 600;
+}
 .empty-note { color: var(--muted); font-size: 0.82rem; font-style: italic; }
 
 .format-row { display: flex; gap: 24px; flex-wrap: wrap; }

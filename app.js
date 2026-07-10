@@ -18,14 +18,15 @@ const EMOJIS = [
 const blankState = () => ({
   setup: {
     types: [],
-    people: [],       // { name, type }
+    families: [],
+    people: [],       // { name, type, family }
     categories: [],
     numTeams: 2,
     numRounds: 3,
   },
   started: false,
   ended: false,
-  teams: [],          // { name, members:[{name,type}], used:[categoryName] }
+  teams: [],          // { name, members:[{name,type,family}], used:[categoryName] }
   grid: [],           // grid[round][team] = { category, rating } | null
   turnRound: 0,
   turnTeam: 0,
@@ -33,10 +34,27 @@ const blankState = () => ({
 
 let state = loadState();
 
+/* Merge saved data over a blank state and backfill any fields added in
+   later versions (e.g. families) so older saved data keeps working. */
+function normalize(saved) {
+  const base = blankState();
+  const st = { ...base, ...(saved || {}) };
+  st.setup = { ...base.setup, ...(saved && saved.setup) };
+  st.setup.types = st.setup.types || [];
+  st.setup.families = st.setup.families || [];
+  st.setup.categories = st.setup.categories || [];
+  st.setup.people = (st.setup.people || []).map((p) => ({
+    name: p.name,
+    type: p.type,
+    family: p.family || "",
+  }));
+  return st;
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...blankState(), ...JSON.parse(raw) };
+    if (raw) return normalize(JSON.parse(raw));
   } catch (e) {
     console.warn("Could not load saved state:", e);
   }
@@ -69,6 +87,24 @@ function shuffle(arr) {
   return a;
 }
 
+/* Populate a <select> from a list of values, or show a disabled prompt. */
+function fillSelect(sel, values, emptyPrompt) {
+  sel.innerHTML = "";
+  if (!values.length) {
+    const opt = el("option", null, emptyPrompt);
+    opt.value = "";
+    sel.append(opt);
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    values.forEach((v) => {
+      const opt = el("option", null, v);
+      opt.value = v;
+      sel.append(opt);
+    });
+  }
+}
+
 /* ================================================================
    SETUP VIEW
    ================================================================ */
@@ -90,22 +126,23 @@ function renderSetup() {
     typeList.append(li);
   });
 
-  // Person type dropdown
-  const sel = $("#person-type");
-  sel.innerHTML = "";
-  if (!s.types.length) {
-    const opt = el("option", null, "Add a type first");
-    opt.value = "";
-    sel.append(opt);
-    sel.disabled = true;
-  } else {
-    sel.disabled = false;
-    s.types.forEach((t) => {
-      const opt = el("option", null, t);
-      opt.value = t;
-      sel.append(opt);
-    });
-  }
+  // Families
+  const familyList = $("#family-list");
+  familyList.innerHTML = "";
+  if (!s.families.length) familyList.append(el("li", "empty-note", "No families yet."));
+  s.families.forEach((f, i) => {
+    const li = el("li", "chip");
+    li.append(el("span", null, f));
+    const rm = el("button", null, "×");
+    rm.title = "Remove";
+    rm.onclick = () => removeFamily(i);
+    li.append(rm);
+    familyList.append(li);
+  });
+
+  // Person type / family dropdowns
+  fillSelect($("#person-type"), s.types, "Add a type first");
+  fillSelect($("#person-family"), s.families, "Add a family first");
 
   // People
   const personList = $("#person-list");
@@ -116,6 +153,7 @@ function renderSetup() {
     const left = el("span");
     left.append(el("span", "p-name", p.name));
     left.append(el("span", "type-tag", p.type));
+    if (p.family) left.append(el("span", "family-tag", p.family));
     li.append(left);
     const rm = el("button", null, "×");
     rm.title = "Remove";
@@ -161,12 +199,33 @@ function removeType(i) {
   renderSetup();
 }
 
+function addFamily() {
+  const input = $("#family-input");
+  const v = input.value.trim();
+  if (!v) return;
+  if (!state.setup.families.includes(v)) state.setup.families.push(v);
+  input.value = "";
+  saveState();
+  renderSetup();
+}
+
+function removeFamily(i) {
+  const removed = state.setup.families.splice(i, 1)[0];
+  // People in this family lose their family reference.
+  state.setup.people.forEach((p) => {
+    if (p.family === removed) p.family = "";
+  });
+  saveState();
+  renderSetup();
+}
+
 function addPerson() {
   const nameInput = $("#person-input");
   const type = $("#person-type").value;
+  const family = $("#person-family").value;
   const name = nameInput.value.trim();
-  if (!name || !type) return;
-  state.setup.people.push({ name, type });
+  if (!name || !type || !family) return;
+  state.setup.people.push({ name, type, family });
   nameInput.value = "";
   saveState();
   renderSetup();
@@ -195,30 +254,85 @@ function removeCategory(i) {
 }
 
 /* ---------- Team allocation ---------- */
-/* Group people by type, then hand them out round-robin across teams,
-   carrying the cursor across types so both per-type and overall counts
-   stay as even as possible. */
-function allocateTeams(people, numTeams) {
+
+/* Number of "extra" same-family team-mates: for every team, each family
+   present more than once contributes (count - 1). Lower is better; 0 means
+   no two team-mates share a family. */
+function familyCollisionScore(teams) {
+  let extra = 0;
+  teams.forEach((t) => {
+    const byFamily = {};
+    t.members.forEach((m) => {
+      if (m.family) byFamily[m.family] = (byFamily[m.family] || 0) + 1;
+    });
+    Object.values(byFamily).forEach((c) => {
+      if (c > 1) extra += c - 1;
+    });
+  });
+  return extra;
+}
+
+/* Build one allocation greedily so that:
+     1. each type is spread as evenly as possible across teams (hard goal —
+        a person always lands on a team currently holding the fewest of
+        their type), and
+     2. members of the same family are kept apart as much as possible
+        (soft goal — among the teams tied on the type goal, pick the one
+        with the fewest members of that person's family).
+   Ties beyond that are broken by smallest team, then at random, and the
+   people are shuffled first so repeated runs give different teams. */
+function allocateOnce(people, numTeams) {
   const teams = Array.from({ length: numTeams }, (_, i) => ({
     name: `Team ${i + 1}`,
     members: [],
     used: [],
+    typeCounts: {},
+    familyCounts: {},
   }));
 
-  const byType = {};
-  people.forEach((p) => {
-    (byType[p.type] = byType[p.type] || []).push(p);
+  const count = (map, key) => map[key] || 0;
+
+  shuffle(people).forEach((p) => {
+    // 1. Teams holding the fewest of this person's type.
+    const minType = Math.min(...teams.map((t) => count(t.typeCounts, p.type)));
+    let cands = teams.filter((t) => count(t.typeCounts, p.type) === minType);
+
+    // 2. Among those, the fewest of this person's family.
+    if (p.family) {
+      const minFam = Math.min(...cands.map((t) => count(t.familyCounts, p.family)));
+      cands = cands.filter((t) => count(t.familyCounts, p.family) === minFam);
+    }
+
+    // 3. Among those, the smallest team; then random.
+    const minSize = Math.min(...cands.map((t) => t.members.length));
+    cands = cands.filter((t) => t.members.length === minSize);
+    const chosen = cands[Math.floor(Math.random() * cands.length)];
+
+    chosen.members.push(p);
+    chosen.typeCounts[p.type] = count(chosen.typeCounts, p.type) + 1;
+    if (p.family) chosen.familyCounts[p.family] = count(chosen.familyCounts, p.family) + 1;
   });
 
-  let cursor = 0;
-  Object.keys(byType).forEach((type) => {
-    shuffle(byType[type]).forEach((p) => {
-      teams[cursor % numTeams].members.push(p);
-      cursor++;
-    });
-  });
+  // Drop the bookkeeping fields before returning.
+  return teams.map((t) => ({ name: t.name, members: t.members, used: t.used }));
+}
 
-  return teams;
+/* Every candidate keeps types balanced, so try a handful and keep the one
+   that best separates families (stop early on a perfect split). */
+function allocateTeams(people, numTeams) {
+  const ATTEMPTS = 40;
+  let best = null;
+  let bestScore = Infinity;
+  for (let i = 0; i < ATTEMPTS; i++) {
+    const teams = allocateOnce(people, numTeams);
+    const score = familyCollisionScore(teams);
+    if (score < bestScore) {
+      best = teams;
+      bestScore = score;
+      if (score === 0) break;
+    }
+  }
+  return best;
 }
 
 function startQuiz() {
@@ -229,7 +343,10 @@ function startQuiz() {
 
   const problems = [];
   if (!s.types.length) problems.push("add at least one type of person");
+  if (!s.families.length) problems.push("add at least one family");
   if (!s.people.length) problems.push("add at least one person");
+  if (s.people.length && s.people.some((p) => !p.family))
+    problems.push("assign a family to every person");
   if (!s.categories.length) problems.push("add at least one category");
   if (!(numTeams >= 1)) problems.push("choose a valid number of teams");
   if (!(numRounds >= 1)) problems.push("choose a valid number of rounds");
@@ -284,8 +401,8 @@ function renderQuiz() {
     team.members.forEach((m, idx) => {
       if (idx) members.append(document.createTextNode(", "));
       members.append(document.createTextNode(m.name + " "));
-      const t = el("span", "member-type", `(${m.type})`);
-      members.append(t);
+      const meta = m.family ? `(${m.type} · ${m.family})` : `(${m.type})`;
+      members.append(el("span", "member-type", meta));
     });
     if (!team.members.length) members.textContent = "No members";
     pill.append(members);
@@ -484,6 +601,7 @@ function init() {
     btn.onclick = () => {
       const kind = btn.dataset.add;
       if (kind === "type") addType();
+      else if (kind === "family") addFamily();
       else if (kind === "person") addPerson();
       else if (kind === "category") addCategory();
     };
@@ -492,6 +610,7 @@ function init() {
   // Enter-to-add on text inputs
   const enterMap = {
     "type-input": addType,
+    "family-input": addFamily,
     "person-input": addPerson,
     "category-input": addCategory,
   };
