@@ -372,6 +372,34 @@ input:focus, select:focus { border-color: var(--accent-2); }
 .emoji-btn:hover { transform: scale(1.08); background: var(--accent-2); }
 .emoji-btn .label { font-size: 0.62rem; color: var(--muted); }
 
+/* ---------- Floating musical notes ---------- */
+.notes-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+.note {
+  position: absolute;
+  bottom: -3rem;
+  will-change: transform, opacity;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(255, 77, 141, 0.5);
+  animation-name: note-rise;
+  animation-timing-function: ease-in;
+  animation-iteration-count: 1;
+}
+@keyframes note-rise {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 0.9; }
+  85%  { opacity: 0.9; }
+  100% { transform: translate(var(--drift, 0), -108vh) rotate(35deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notes-layer { display: none; }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 720px) {
   .setup-grid { grid-template-columns: 1fr; }

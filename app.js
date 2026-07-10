@@ -765,8 +765,39 @@ function tickTimer() {
   renderTimer();
 }
 
+/* ---------- Floating musical notes ---------- */
+const NOTE_GLYPHS = ["🎵", "🎶", "♪", "♫", "🎼", "🎤"];
+let notesSpawner = null;
+
+function spawnNote() {
+  const layer = $("#notes-layer");
+  if (!layer) return;
+  const note = el("span", "note", NOTE_GLYPHS[Math.floor(Math.random() * NOTE_GLYPHS.length)]);
+  note.style.left = (Math.random() * 96).toFixed(1) + "vw";
+  note.style.fontSize = (1.2 + Math.random() * 1.8).toFixed(2) + "rem";
+  note.style.animationDuration = (4 + Math.random() * 3).toFixed(2) + "s";
+  note.style.setProperty("--drift", Math.round(Math.random() * 160 - 80) + "px");
+  note.addEventListener("animationend", () => note.remove());
+  layer.append(note);
+}
+
+/* Spawn notes only while a turn's timer is actively counting down. */
+function updateNotesAnimation() {
+  const reduce =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const active = state.started && !state.ended && state.timer.running && !reduce;
+  if (active && !notesSpawner) {
+    spawnNote();
+    notesSpawner = setInterval(spawnNote, 550);
+  } else if (!active && notesSpawner) {
+    clearInterval(notesSpawner);
+    notesSpawner = null;
+  }
+}
+
 /* Paint the timer widget from the current state. */
 function renderTimer() {
+  updateNotesAnimation();
   const widget = $("#timer-widget");
   if (!widget) return;
   const active = state.started && !state.ended && (state.setup.turnSeconds || 0) > 0;
