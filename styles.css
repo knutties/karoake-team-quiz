@@ -147,6 +147,12 @@ input:focus, select:focus { border-color: var(--accent-2); }
   padding: 8px 12px;
   border-radius: 10px;
 }
+.person-list li.editing {
+  outline: 1px solid var(--accent-2);
+  outline-offset: -1px;
+}
+.row-controls { display: flex; align-items: center; gap: 2px; }
+.person-list .row-edit:hover { color: var(--accent-2); }
 .person-list .p-name { font-weight: 600; }
 .person-list .type-tag {
   font-size: 0.72rem;
