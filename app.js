@@ -437,6 +437,23 @@ function endQuiz() {
   renderQuiz();
 }
 
+/* Start a fresh quiz reusing the current setup (people, categories, team
+   and round counts). Teams are reshuffled and all scores cleared. */
+function restartQuiz() {
+  if (!confirm("Restart the quiz with the same people and settings? Teams will be reshuffled and all scores cleared.")) return;
+  const s = state.setup;
+  state.teams = allocateTeams(s.people, s.numTeams);
+  state.grid = Array.from({ length: s.numRounds }, () =>
+    Array.from({ length: s.numTeams }, () => null)
+  );
+  state.turnRound = 0;
+  state.turnTeam = 0;
+  state.ended = false;
+  state.started = true;
+  saveState();
+  renderQuiz();
+}
+
 /* ================================================================
    NAV / VIEW SWITCHING
    ================================================================ */
@@ -496,6 +513,7 @@ function init() {
 
   $("#start-btn").onclick = startQuiz;
   $("#reset-btn").onclick = resetAll;
+  $("#restart-btn").onclick = restartQuiz;
   $("#end-btn").onclick = endQuiz;
   $("#back-setup-btn").onclick = () => showView("setup");
   $("#nav-setup").onclick = () => showView("setup");
