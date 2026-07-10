@@ -498,6 +498,9 @@ function renderQuiz() {
     banner.textContent = `🎙️ ${team.name}'s turn — Round ${state.turnRound + 1}`;
   }
 
+  // Shuffling only makes sense while the quiz is still running.
+  $("#shuffle-btn").hidden = state.ended;
+
   // Ended banner
   const existingEnded = $(".ended-banner");
   if (existingEnded) existingEnded.remove();
@@ -653,6 +656,22 @@ function restartQuiz() {
   state.ended = false;
   state.started = true;
   resetTurnTimer();
+  saveState();
+  renderQuiz();
+}
+
+/* Reshuffle who is on each team mid-quiz without disturbing the scoreboard.
+   Members are re-dealt across the same teams (types balanced, families kept
+   apart where possible); team names, used categories, scores and the current
+   turn all stay put. */
+function shuffleTeams() {
+  if (!state.started || state.ended) return;
+  if (!confirm("Shuffle team members now? People will be re-dealt across the teams (types stay balanced and families kept apart where possible). Scores and the current turn are kept.")) return;
+  const everyone = state.teams.flatMap((t) => t.members);
+  const fresh = allocateTeams(everyone, state.setup.numTeams);
+  state.teams.forEach((t, i) => {
+    t.members = fresh[i].members;
+  });
   saveState();
   renderQuiz();
 }
@@ -891,6 +910,7 @@ function init() {
   $("#start-btn").onclick = startQuiz;
   $("#reset-btn").onclick = clearLocalData;
   $("#person-cancel-btn").onclick = cancelEditPerson;
+  $("#shuffle-btn").onclick = shuffleTeams;
   $("#restart-btn").onclick = restartQuiz;
   $("#end-btn").onclick = endQuiz;
   $("#timer-toggle").onclick = toggleTimer;
