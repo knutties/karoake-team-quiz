@@ -151,7 +151,8 @@ input:focus, select:focus { border-color: var(--accent-2); }
   outline: 1px solid var(--accent-2);
   outline-offset: -1px;
 }
-.row-controls { display: flex; align-items: center; gap: 2px; }
+.row-controls { display: flex; align-items: center; gap: 12px; }
+.row-controls button { padding: 2px 4px; }
 .person-list .row-edit:hover { color: var(--accent-2); }
 .person-list .p-name { font-weight: 600; }
 .person-list .type-tag {
