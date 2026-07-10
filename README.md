@@ -11,8 +11,9 @@ is ever sent to a server.
    - a list of **families** (e.g. Smith, Jones),
    - a list of **people**, each belonging to a type and a family,
    - a list of **song categories**,
-   - the **number of teams**, and
-   - the **number of rounds**.
+   - the **number of teams**,
+   - the **number of rounds**, and
+   - an optional **per-turn timer** (minutes and seconds; set to 0:00 for none).
 2. **Creates the teams** and allocates people across them so that each **type**
    is spread as evenly as possible, while also keeping members of the same
    **family** on different teams as much as possible. (Type balance is the hard
@@ -20,6 +21,8 @@ is ever sent to a server.
 3. Shows the **quiz grid** — one column per team, one row per round.
    - On a team's turn, a **🎲 Pick category** button appears in that cell. It
      randomly selects a category, preferring ones the team hasn't used yet.
+   - Picking a category starts the **countdown timer** for that turn (if one is
+     configured). It can be paused/resumed or reset, and flashes when time is up.
    - After the person has sung, a **rating popup** of emojis appears. Choosing
      one records the score and passes the turn to the next team/round.
 4. The quiz can be **ended at any time**, and the completed grid stays visible.

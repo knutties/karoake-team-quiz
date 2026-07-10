@@ -15,6 +15,8 @@ const EMOJIS = [
 ];
 
 /* ---------- State ---------- */
+const DEFAULT_TURN_SECONDS = 90;
+
 const blankState = () => ({
   setup: {
     types: [],
@@ -23,6 +25,7 @@ const blankState = () => ({
     categories: [],
     numTeams: 2,
     numRounds: 3,
+    turnSeconds: DEFAULT_TURN_SECONDS, // per-turn countdown length; 0 = no timer
   },
   started: false,
   ended: false,
@@ -30,6 +33,9 @@ const blankState = () => ({
   grid: [],           // grid[round][team] = { category, rating } | null
   turnRound: 0,
   turnTeam: 0,
+  // Per-turn countdown. endsAt is an epoch ms deadline while running; when
+  // paused/idle the time left lives in remainingMs.
+  timer: { running: false, endsAt: null, remainingMs: DEFAULT_TURN_SECONDS * 1000 },
 });
 
 let state = loadState();
@@ -48,6 +54,10 @@ function normalize(saved) {
     type: p.type,
     family: p.family || "",
   }));
+  if (!Number.isFinite(st.setup.turnSeconds)) st.setup.turnSeconds = DEFAULT_TURN_SECONDS;
+  if (!st.timer || typeof st.timer !== "object") {
+    st.timer = { running: false, endsAt: null, remainingMs: st.setup.turnSeconds * 1000 };
+  }
   return st;
 }
 
@@ -193,6 +203,9 @@ function renderSetup() {
   // Numbers
   $("#num-teams").value = s.numTeams;
   $("#num-rounds").value = s.numRounds;
+  const secs = s.turnSeconds || 0;
+  $("#timer-min").value = Math.floor(secs / 60);
+  $("#timer-sec").value = secs % 60;
 }
 
 function addType() {
@@ -420,6 +433,7 @@ function startQuiz() {
 
   s.numTeams = numTeams;
   s.numRounds = numRounds;
+  s.turnSeconds = readTurnSeconds();
 
   state.teams = allocateTeams(s.people, numTeams);
   state.grid = Array.from({ length: numRounds }, () =>
@@ -429,10 +443,18 @@ function startQuiz() {
   state.turnTeam = 0;
   state.started = true;
   state.ended = false;
+  resetTurnTimer();
 
   saveState();
   showView("quiz");
   renderQuiz();
+}
+
+/* Read the minutes/seconds inputs into a total seconds value (0 = no timer). */
+function readTurnSeconds() {
+  const m = Math.max(0, Math.min(59, parseInt($("#timer-min").value, 10) || 0));
+  const sec = Math.max(0, Math.min(59, parseInt($("#timer-sec").value, 10) || 0));
+  return m * 60 + sec;
 }
 
 /* ================================================================
@@ -506,6 +528,8 @@ function renderQuiz() {
     tbody.append(row);
   }
   table.append(tbody);
+
+  renderTimer();
 }
 
 function buildCell(round, team) {
@@ -551,6 +575,7 @@ function pickCategory(round, team) {
 
   state.grid[round][team] = { category: choice, rating: null };
   state.teams[team].used.push(choice);
+  startTurnTimer();
   saveState();
   renderQuiz();
 }
@@ -585,6 +610,7 @@ function applyRating(icon) {
   $("#rating-modal").hidden = true;
 
   advanceTurn();
+  resetTurnTimer();
   saveState();
   renderQuiz();
 }
@@ -608,6 +634,7 @@ function advanceTurn() {
 function endQuiz() {
   if (!confirm("End the quiz now? You can still review the grid afterwards.")) return;
   state.ended = true;
+  state.timer.running = false;
   saveState();
   renderQuiz();
 }
@@ -625,8 +652,139 @@ function restartQuiz() {
   state.turnTeam = 0;
   state.ended = false;
   state.started = true;
+  resetTurnTimer();
   saveState();
   renderQuiz();
+}
+
+/* ================================================================
+   TURN TIMER
+   ================================================================ */
+
+let timerBeeped = false;
+
+/* Milliseconds left right now, whether the clock is running or paused. */
+function currentRemainingMs() {
+  const t = state.timer;
+  if (t.running && t.endsAt) return Math.max(0, t.endsAt - Date.now());
+  return Math.max(0, t.remainingMs || 0);
+}
+
+function formatTime(ms) {
+  const total = Math.ceil(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/* Begin a fresh countdown for the turn that just started. */
+function startTurnTimer() {
+  const total = (state.setup.turnSeconds || 0) * 1000;
+  timerBeeped = false;
+  state.timer = total > 0
+    ? { running: true, endsAt: Date.now() + total, remainingMs: total }
+    : { running: false, endsAt: null, remainingMs: 0 };
+}
+
+/* Reset the clock to a stopped, full-length state for the next turn. */
+function resetTurnTimer() {
+  timerBeeped = false;
+  state.timer = {
+    running: false,
+    endsAt: null,
+    remainingMs: (state.setup.turnSeconds || 0) * 1000,
+  };
+}
+
+function toggleTimer() {
+  const t = state.timer;
+  if (t.running) {
+    t.remainingMs = currentRemainingMs();
+    t.running = false;
+    t.endsAt = null;
+  } else {
+    let ms = t.remainingMs;
+    if (!ms || ms <= 0) {
+      ms = (state.setup.turnSeconds || 0) * 1000;
+      timerBeeped = false;
+    }
+    if (ms <= 0) return; // no timer configured
+    t.remainingMs = ms;
+    t.endsAt = Date.now() + ms;
+    t.running = true;
+  }
+  saveState();
+  renderTimer();
+}
+
+function resetTimer() {
+  resetTurnTimer();
+  saveState();
+  renderTimer();
+}
+
+/* A short two-tone chime when the clock hits zero (best-effort; ignored if
+   the browser blocks audio). */
+function beep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    [880, 660].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0 = now + i * 0.22;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      osc.start(t0);
+      osc.stop(t0 + 0.22);
+    });
+  } catch (e) {
+    /* audio not available — the visual "Time's up!" still shows */
+  }
+}
+
+/* Called ~4x/second to refresh the clock and fire the zero transition. */
+function tickTimer() {
+  const t = state.timer;
+  if (t.running && t.endsAt && Date.now() >= t.endsAt) {
+    t.running = false;
+    t.endsAt = null;
+    t.remainingMs = 0;
+    saveState();
+    if (!timerBeeped) {
+      timerBeeped = true;
+      beep();
+    }
+  }
+  renderTimer();
+}
+
+/* Paint the timer widget from the current state. */
+function renderTimer() {
+  const widget = $("#timer-widget");
+  if (!widget) return;
+  const active = state.started && !state.ended && (state.setup.turnSeconds || 0) > 0;
+  widget.hidden = !active;
+  if (!active) return;
+
+  const ms = currentRemainingMs();
+  const display = $("#timer-display");
+  display.textContent = formatTime(ms);
+  const isUp = ms <= 0;
+  display.classList.toggle("time-up", isUp);
+  display.classList.toggle("time-warn", !isUp && ms <= 10000);
+
+  const toggle = $("#timer-toggle");
+  const full = (state.setup.turnSeconds || 0) * 1000;
+  if (state.timer.running) toggle.textContent = "Pause";
+  else if (ms > 0 && ms < full) toggle.textContent = "Resume";
+  else toggle.textContent = "Start";
 }
 
 /* ================================================================
@@ -692,12 +850,23 @@ function init() {
     state.setup.numRounds = parseInt(e.target.value, 10) || 1;
     saveState();
   });
+  const persistTurnSeconds = () => {
+    state.setup.turnSeconds = readTurnSeconds();
+    saveState();
+  };
+  $("#timer-min").addEventListener("change", persistTurnSeconds);
+  $("#timer-sec").addEventListener("change", persistTurnSeconds);
 
   $("#start-btn").onclick = startQuiz;
   $("#reset-btn").onclick = clearLocalData;
   $("#person-cancel-btn").onclick = cancelEditPerson;
   $("#restart-btn").onclick = restartQuiz;
   $("#end-btn").onclick = endQuiz;
+  $("#timer-toggle").onclick = toggleTimer;
+  $("#timer-reset").onclick = resetTimer;
+
+  // Drive the countdown clock.
+  setInterval(tickTimer, 250);
   $("#back-setup-btn").onclick = () => showView("setup");
   $("#nav-setup").onclick = () => showView("setup");
   $("#nav-quiz").onclick = () => {
