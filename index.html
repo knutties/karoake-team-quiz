@@ -36,9 +36,33 @@
           <ul id="type-list" class="chip-list"></ul>
         </div>
 
-        <!-- Categories -->
+        <!-- Families -->
         <div class="card">
-          <h2>3. Song categories</h2>
+          <h2>2. Families</h2>
+          <p class="hint">e.g. Smith, Jones &mdash; team-mates from the same family are kept apart where possible.</p>
+          <div class="add-row">
+            <input type="text" id="family-input" placeholder="Add a family…" />
+            <button class="add-btn" data-add="family">Add</button>
+          </div>
+          <ul id="family-list" class="chip-list"></ul>
+        </div>
+
+        <!-- People -->
+        <div class="card card-wide">
+          <h2>3. People</h2>
+          <p class="hint">Add each person, then choose their type and family.</p>
+          <div class="add-row">
+            <input type="text" id="person-input" placeholder="Person's name…" />
+            <select id="person-type"></select>
+            <select id="person-family"></select>
+            <button class="add-btn" data-add="person">Add</button>
+          </div>
+          <ul id="person-list" class="person-list"></ul>
+        </div>
+
+        <!-- Categories -->
+        <div class="card card-wide">
+          <h2>4. Song categories</h2>
           <p class="hint">e.g. 80s, Rock, Musicals, Disney &mdash; picked at random during a turn.</p>
           <div class="add-row">
             <input type="text" id="category-input" placeholder="Add a category…" />
@@ -47,21 +71,9 @@
           <ul id="category-list" class="chip-list"></ul>
         </div>
 
-        <!-- People -->
-        <div class="card card-wide">
-          <h2>2. People</h2>
-          <p class="hint">Add each person and choose their type.</p>
-          <div class="add-row">
-            <input type="text" id="person-input" placeholder="Person's name…" />
-            <select id="person-type"></select>
-            <button class="add-btn" data-add="person">Add</button>
-          </div>
-          <ul id="person-list" class="person-list"></ul>
-        </div>
-
         <!-- Quiz format -->
         <div class="card card-wide">
-          <h2>4 &amp; 5. Quiz format</h2>
+          <h2>5 &amp; 6. Quiz format</h2>
           <div class="format-row">
             <label>
               Number of teams
