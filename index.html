@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎤 Karaoke Team Quiz</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎤 Karaoke Team Quiz</h1>
+    <nav class="app-nav">
+      <button id="nav-setup" class="nav-btn">Setup</button>
+      <button id="nav-quiz" class="nav-btn">Quiz</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ===================== SETUP VIEW ===================== -->
+    <section id="view-setup" class="view">
+      <p class="intro">
+        Configure the people, the song categories and the quiz format below.
+        Everything is saved in your browser &mdash; nothing is sent anywhere.
+      </p>
+
+      <div class="setup-grid">
+        <!-- Types of people -->
+        <div class="card">
+          <h2>1. Types of people</h2>
+          <p class="hint">e.g. Soprano, Alto, Tenor, Bass &mdash; used to spread people evenly across teams.</p>
+          <div class="add-row">
+            <input type="text" id="type-input" placeholder="Add a type…" />
+            <button class="add-btn" data-add="type">Add</button>
+          </div>
+          <ul id="type-list" class="chip-list"></ul>
+        </div>
+
+        <!-- Categories -->
+        <div class="card">
+          <h2>3. Song categories</h2>
+          <p class="hint">e.g. 80s, Rock, Musicals, Disney &mdash; picked at random during a turn.</p>
+          <div class="add-row">
+            <input type="text" id="category-input" placeholder="Add a category…" />
+            <button class="add-btn" data-add="category">Add</button>
+          </div>
+          <ul id="category-list" class="chip-list"></ul>
+        </div>
+
+        <!-- People -->
+        <div class="card card-wide">
+          <h2>2. People</h2>
+          <p class="hint">Add each person and choose their type.</p>
+          <div class="add-row">
+            <input type="text" id="person-input" placeholder="Person's name…" />
+            <select id="person-type"></select>
+            <button class="add-btn" data-add="person">Add</button>
+          </div>
+          <ul id="person-list" class="person-list"></ul>
+        </div>
+
+        <!-- Quiz format -->
+        <div class="card card-wide">
+          <h2>4 &amp; 5. Quiz format</h2>
+          <div class="format-row">
+            <label>
+              Number of teams
+              <input type="number" id="num-teams" min="1" max="12" value="2" />
+            </label>
+            <label>
+              Number of rounds
+              <input type="number" id="num-rounds" min="1" max="30" value="3" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-actions">
+        <button id="start-btn" class="primary-btn">🎉 Create teams &amp; start quiz</button>
+        <button id="reset-btn" class="ghost-btn">Clear everything</button>
+      </div>
+      <p id="setup-error" class="error-msg" hidden></p>
+    </section>
+
+    <!-- ===================== QUIZ VIEW ===================== -->
+    <section id="view-quiz" class="view" hidden>
+      <div class="quiz-toolbar">
+        <div id="turn-banner" class="turn-banner"></div>
+        <div class="quiz-toolbar-actions">
+          <button id="end-btn" class="ghost-btn">End quiz</button>
+          <button id="back-setup-btn" class="ghost-btn">Edit setup</button>
+        </div>
+      </div>
+
+      <div class="teams-summary" id="teams-summary"></div>
+
+      <div class="grid-wrap">
+        <table id="quiz-grid" class="quiz-grid"></table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== EMOJI RATING MODAL ===================== -->
+  <div id="rating-modal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3 id="rating-title">Rate the performance</h3>
+      <p id="rating-sub" class="hint"></p>
+      <div id="emoji-choices" class="emoji-choices"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
