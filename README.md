@@ -27,7 +27,10 @@ is ever sent to a server.
      karaoke atmosphere (disabled if you prefer reduced motion).
    - After the person has sung, a **rating popup** of emojis appears. Choosing
      one records the score and passes the turn to the next team/round.
-4. The quiz can be **ended at any time**, and the completed grid stays visible.
+4. Teams can be **shuffled mid-quiz** with the **Shuffle teams** button — people
+   are re-dealt across the same teams (types stay balanced, families kept apart)
+   while scores and the current turn are preserved.
+5. The quiz can be **ended at any time**, and the completed grid stays visible.
 
 Progress is saved automatically, so you can refresh or close the tab and pick up
 where you left off.
