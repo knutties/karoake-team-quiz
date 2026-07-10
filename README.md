@@ -27,6 +27,10 @@ is ever sent to a server.
 Progress is saved automatically, so you can refresh or close the tab and pick up
 where you left off.
 
+To wipe everything the app has stored in your browser, click **Clear saved
+data** on the Setup screen — it removes all types, families, people, categories
+and any running quiz.
+
 ## Running locally
 
 It's pure HTML/CSS/JS — just open `index.html` in a browser, or serve the folder:
