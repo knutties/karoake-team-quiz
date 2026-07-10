@@ -584,10 +584,15 @@ function showView(name) {
   if (name === "quiz") renderQuiz();
 }
 
-function resetAll() {
-  if (!confirm("Clear all people, categories and any running quiz? This cannot be undone.")) return;
+/* Wipe everything this app has stored in the browser and start from scratch. */
+function clearLocalData() {
+  if (!confirm("Clear all saved data (types, families, people, categories and any running quiz) from this browser? This cannot be undone.")) return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.warn("Could not clear saved data:", e);
+  }
   state = blankState();
-  saveState();
   showView("setup");
 }
 
@@ -631,7 +636,7 @@ function init() {
   });
 
   $("#start-btn").onclick = startQuiz;
-  $("#reset-btn").onclick = resetAll;
+  $("#reset-btn").onclick = clearLocalData;
   $("#restart-btn").onclick = restartQuiz;
   $("#end-btn").onclick = endQuiz;
   $("#back-setup-btn").onclick = () => showView("setup");
