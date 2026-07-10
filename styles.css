@@ -178,6 +178,9 @@ input:focus, select:focus { border-color: var(--accent-2); }
 .format-row { display: flex; gap: 24px; flex-wrap: wrap; }
 .format-row label { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; color: var(--muted); }
 .format-row input { width: 120px; }
+.time-inputs { display: flex; align-items: center; gap: 6px; }
+.time-inputs input { width: 62px; }
+.time-unit { font-size: 0.85rem; color: var(--muted); }
 
 /* Setup actions */
 .setup-actions { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
@@ -223,6 +226,42 @@ input:focus, select:focus { border-color: var(--accent-2); }
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 .quiz-toolbar-actions { display: flex; gap: 10px; }
+
+/* Countdown timer widget */
+.timer-widget {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.timer-display {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 68px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.timer-display.time-warn { color: #ffcc4d; }
+.timer-display.time-up {
+  color: var(--danger);
+  animation: timer-flash 1s steps(1, end) infinite;
+}
+.timer-display.time-up::after { content: " ⏰"; }
+@keyframes timer-flash { 50% { opacity: 0.35; } }
+.timer-btn {
+  background: var(--card-2);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.timer-btn:hover { background: var(--accent-2); }
 
 .teams-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
 .team-pill {
